@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa de Bogotá - Top 5 Riesgo de Deserción</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <style>
+        body { margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        #map { height: 100vh; width: 100vw; }
+        
+        .info-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            width: 300px;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+        h2 { 
+            margin-top: 0; 
+            font-size: 1.15rem; 
+            color: #333; 
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 12px;
+            margin-bottom: 15px;
+        }
+        #hover-info {
+            font-size: 0.95rem;
+            color: #555;
+            line-height: 1.5;
+            min-height: 100px;
+        }
+        .loc-title { font-size: 1.2rem; color: #222; font-weight: bold; text-transform: capitalize; margin-bottom: 10px; display: block;}
+        .data-label { font-size: 0.85rem; color: #777; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 10px; display: block;}
+        .data-value { font-size: 1.1rem; color: #2c3e50; font-weight: 600; margin-bottom: 5px; display: block;}
+        
+        .legend { margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px; font-size: 0.85rem; color: #666; margin-bottom: 15px; }
+        .legend-color { display: inline-block; width: 14px; height: 14px; background: #e67c73; border-radius: 3px; margin-right: 5px; vertical-align: middle; }
+        
+        /* Estilo del botón de navegación */
+        .nav-button {
+            display: block;
+            width: 100%;
+            padding: 12px 0;
+            background-color: #3498db;
+            color: white;
+            text-align: center;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 0.95rem;
+            transition: background 0.3s ease;
+            box-sizing: border-box;
+        }
+        .nav-button:hover {
+            background-color: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    
+    <div class="info-panel">
+        <h2>Detalle por Localidad (2025)</h2>
+        <div id="hover-info">
+            Pasa el cursor sobre el mapa para explorar las probabilidades máximas de deserción por estrato e ingreso.
+        </div>
+        <div class="legend">
+            <span class="legend-color"></span> Top 5 mayor riesgo
+        </div>
+        <a href="Index2.html" class="nav-button">📊 Ver Graficas de Barras de Riesgo por Localidad</a>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const dataDesercion = {
+            "ciudad bolivar": { est: "0.77 (Estrato 1)", ing: "0.88 (Ingreso 1 SM)" },
+            "rafael uribe uribe": { est: "0.75 (Estrato 1)", ing: "~0.51 (Ingreso 1 SM)" },
+            "usme": { est: "0.61 (Estrato 1)", ing: "0.80 (Ingreso 1 SM)" },
+            "los martires": { est: "0.60 (Estrato 1)", ing: "0.83 (Ingreso 1 SM)" },
+            "bosa": { est: "0.50 (Estrato 1)", ing: "0.73 (Ingreso 1 SM)" },
+            "santa fe": { est: "~0.46 (Estrato 1)", ing: "0.70 (Ingreso 1 SM)" },
+            "kennedy": { est: "~0.49 (Estrato 1)", ing: "~0.61 (Ingreso 1 SM)" },
+            "engativa": { est: "~0.47 (Estrato 1)", ing: "~0.61 (Ingreso 1 SM)" },
+            "antonio narino": { est: "~0.27 (Estrato 1)", ing: "~0.61 (Ingreso 1 SM)" },
+            "san cristobal": { est: "~0.40 (Estrato 1)", ing: "~0.47 (Ingreso 1 SM)" },
+            "tunjuelito": { est: "~0.42 (Estrato 2)", ing: "~0.39 (Ingreso 2 SM)" },
+            "fontibon": { est: "~0.35 (Estrato 1)", ing: "~0.33 (Ingreso 1 SM)" },
+            "la candelaria": { est: "~0.30 (Estrato 1)", ing: "~0.19 (Ingreso 2 SM)" },
+            "teusaquillo": { est: "~0.28 (Estrato 3)", ing: "~0.12 (Ingreso 3 SM)" },
+            "puente aranda": { est: "~0.20 (Estrato 2)", ing: "~0.23 (Ingreso 2 SM)" },
+            "barrios unidos": { est: "~0.15 (Estrato 2)", ing: "~0.20 (Ingreso 2 SM)" },
+            "sumapaz": { est: "~0.14 (Estrato 2)", ing: "~0.14 (Ingreso 2 SM)" },
+            "chapinero": { est: "~0.11 (Estrato 2)", ing: "~0.14 (Ingreso 3 SM)" },
+            "suba": { est: "~0.09 (Estrato 2)", ing: "~0.12 (Ingreso 3 SM)" },
+            "usaquen": { est: "~0.05 (Estrato 2)", ing: "~0.08 (Ingreso 1 SM)" }
+        };
+
+        const top5 = ['ciudad bolivar', 'los martires', 'usme', 'rafael uribe uribe', 'bosa'];
+
+        const pastelColors = [
+            '#FFDFBA', '#FFFFBA', '#BAFFC9', '#BAE1FF', '#E8BAFF', 
+            '#FDFD96', '#CFCFC4', '#B4E6CE', '#AEC6CF', '#CB99C9', 
+            '#FFD8B1', '#E2F0CB', '#E0BBE4', '#957DAD', '#D291BC',
+            '#d4e6b5', '#b5d4e6', '#e6c8b5', '#c8b5e6', '#b5e6c8'
+        ];
+
+        const map = L.map('map', {zoomControl: false}).setView([4.6497, -74.1017], 11);
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+            maxZoom: 19
+        }).addTo(map);
+
+        function normalizeName(name) {
+            return name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+        }
+
+        function getColorForLocality(name) {
+            if (top5.includes(name)) return '#e67c73'; 
+            let hash = 0;
+            for (let i = 0; i < name.length; i++) {
+                hash = name.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            return pastelColors[Math.abs(hash) % pastelColors.length];
+        }
+
+        function style(feature) {
+            const locName = normalizeName(feature.properties.LocNombre || feature.properties.nombre || "");
+            const isTop5 = top5.includes(locName);
+            return {
+                fillColor: getColorForLocality(locName),
+                weight: isTop5 ? 2 : 1.5,
+                opacity: 1,
+                color: '#ffffff', 
+                fillOpacity: isTop5 ? 0.9 : 0.75
+            };
+        }
+
+        function highlightFeature(e) {
+            const layer = e.target;
+            layer.setStyle({
+                weight: 3,
+                color: '#333',
+                fillOpacity: 1
+            });
+            layer.bringToFront();
+
+            const locNameOriginal = layer.feature.properties.LocNombre || layer.feature.properties.nombre;
+            const locName = normalizeName(locNameOriginal);
+            const data = dataDesercion[locName];
+            const infoDiv = document.getElementById('hover-info');
+            
+            if (data) {
+                infoDiv.innerHTML = `
+                    <span class="loc-title">${locNameOriginal.toLowerCase()}</span>
+                    <span class="data-label">Mayor Prob. por Estrato:</span>
+                    <span class="data-value" style="${top5.includes(locName) ? 'color: #e67c73;' : ''}">${data.est}</span>
+                    <span class="data-label">Mayor Prob. por Ingreso:</span>
+                    <span class="data-value" style="${top5.includes(locName) ? 'color: #e67c73;' : ''}">${data.ing}</span>
+                `;
+            } else {
+                infoDiv.innerHTML = `
+                    <span class="loc-title">${locNameOriginal.toLowerCase()}</span>
+                    <p>Datos no disponibles en las gráficas analizadas.</p>
+                `;
+            }
+        }
+
+        function resetHighlight(e) {
+            geojsonLayer.resetStyle(e.target);
+            document.getElementById('hover-info').innerHTML = "Pasa el cursor sobre el mapa para explorar las probabilidades máximas de deserción por estrato e ingreso.";
+        }
+
+        function onEachFeature(feature, layer) {
+            layer.on({
+                mouseover: highlightFeature,
+                mouseout: resetHighlight
+            });
+        }
+
+        let geojsonLayer;
+
+        fetch('https://raw.githubusercontent.com/nestorandrespe/datos-bogota/master/localidades.geojson')
+            .then(response => response.json())
+            .then(data => {
+                geojsonLayer = L.geoJson(data, {
+                    style: style,
+                    onEachFeature: onEachFeature
+                }).addTo(map);
+                map.fitBounds(geojsonLayer.getBounds());
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('hover-info').innerHTML = "Error al cargar los polígonos del mapa.";
+            });
+    </script>
+</body>
+</html>
