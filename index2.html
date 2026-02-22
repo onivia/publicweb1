@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tablero de Indicadores - Deserción Escolar Bogotá 2025</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f4f6f8;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        h1 {
+            color: #2c3e50;
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        p.subtitle {
+            color: #7f8c8d;
+            font-size: 1rem;
+            margin-bottom: 20px;
+        }
+
+        /* Estilo del botón de navegación */
+        .nav-button {
+            display: inline-block;
+            padding: 10px 25px;
+            background-color: #3498db;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 1rem;
+            transition: background 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .nav-button:hover {
+            background-color: #2980b9;
+        }
+
+        .chart-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            padding: 25px;
+            margin-bottom: 40px;
+        }
+
+        h2 {
+            font-size: 1.25rem;
+            color: #444;
+            margin-bottom: 20px;
+            border-left: 5px solid #e67c73;
+            padding-left: 10px;
+        }
+
+        .canvas-container {
+            position: relative;
+            height: 400px;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Análisis de Riesgo de Deserción 2025</h1>
+        <p class="subtitle">Visualización de probabilidades máximas por Localidad según Estrato e Ingreso</p>
+        <a href="index.html" class="nav-button">🗺️ Ver Mapa de Riesgo por Localidad</a>
+    </header>
+
+    <div class="chart-card">
+        <h2>1. Probabilidad de Deserción por Estrato y Localidad</h2>
+        <div class="canvas-container">
+            <canvas id="chartEstrato"></canvas>
+        </div>
+    </div>
+
+    <div class="chart-card">
+        <h2>2. Probabilidad de Deserción por Ingreso (≤ 1 SM) y Localidad</h2>
+        <div class="canvas-container">
+            <canvas id="chartIngreso"></canvas>
+        </div>
+    </div>
+</div>
+
+<script>
+    const labels = [
+        'Ciudad Bolívar', 'Rafael Uribe Uribe', 'Usme', 'Los Mártires', 'Bosa', 
+        'Santa Fe', 'Kennedy', 'Engativá', 'San Cristóbal', 'Tunjuelito', 
+        'Fontibón', 'La Candelaria', 'Teusaquillo', 'Antonio Nariño', 'Puente Aranda',
+        'Barrios Unidos', 'Sumapaz', 'Chapinero', 'Suba', 'Usaquén'
+    ];
+
+    const dataEstrato = [0.77, 0.75, 0.61, 0.60, 0.50, 0.46, 0.49, 0.47, 0.40, 0.42, 0.35, 0.30, 0.28, 0.27, 0.20, 0.15, 0.14, 0.11, 0.09, 0.05];
+    const infoEstrato = [
+        'Estrato 1', 'Estrato 1', 'Estrato 1', 'Estrato 1', 'Estrato 1', 
+        'Estrato 1', 'Estrato 1', 'Estrato 1', 'Estrato 1', 'Estrato 2', 
+        'Estrato 1', 'Estrato 1', 'Estrato 3', 'Estrato 1', 'Estrato 2', 
+        'Estrato 2', 'Estrato 2', 'Estrato 2', 'Estrato 2', 'Estrato 2'
+    ];
+
+    const dataIngreso = [0.88, 0.51, 0.80, 0.83, 0.73, 0.70, 0.61, 0.61, 0.47, 0.39, 0.33, 0.19, 0.12, 0.61, 0.23, 0.20, 0.14, 0.14, 0.12, 0.08];
+    const infoIngreso = [
+        'Ingreso 1 SM', 'Ingreso 1 SM', 'Ingreso 1 SM', 'Ingreso 1 SM', 'Ingreso 1 SM', 
+        'Ingreso 1 SM', 'Ingreso 1 SM', 'Ingreso 1 SM', 'Ingreso 1 SM', 'Ingreso 2 SM', 
+        'Ingreso 1 SM', 'Ingreso 2 SM', 'Ingreso 3 SM', 'Ingreso 1 SM', 'Ingreso 2 SM', 
+        'Ingreso 2 SM', 'Ingreso 2 SM', 'Ingreso 3 SM', 'Ingreso 3 SM', 'Ingreso 1 SM'
+    ];
+
+    function getColorArray(dataValues) {
+        return dataValues.map(value => value >= 0.50 ? '#e67c73' : '#aeb6bf');
+    }
+
+    const commonOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                beginAtZero: true,
+                max: 1.0,
+                title: { display: true, text: 'Probabilidad (0 - 1)', font: { weight: 'bold' } },
+                grid: { color: '#f0f0f0' }
+            },
+            x: { grid: { display: false } }
+        },
+        plugins: {
+            legend: {
+                display: true,
+                position: 'top',
+                labels: {
+                    generateLabels: function(chart) {
+                        return [
+                            { text: 'Riesgo Alto (Prob ≥ 0.50)', fillStyle: '#e67c73', strokeStyle: '#e67c73' },
+                            { text: 'Riesgo Moderado/Bajo', fillStyle: '#aeb6bf', strokeStyle: '#aeb6bf' }
+                        ];
+                    }
+                }
+            }
+        }
+    };
+
+    const ctx1 = document.getElementById('chartEstrato').getContext('2d');
+    new Chart(ctx1, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Probabilidad de Deserción',
+                data: dataEstrato,
+                backgroundColor: getColorArray(dataEstrato),
+                borderRadius: 4,
+                borderWidth: 0
+            }]
+        },
+        options: {
+            ...commonOptions,
+            plugins: {
+                ...commonOptions.plugins,
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const index = context.dataIndex;
+                            return `Probabilidad: ${context.raw} (${infoEstrato[index]})`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    const ctx2 = document.getElementById('chartIngreso').getContext('2d');
+    new Chart(ctx2, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Probabilidad de Deserción',
+                data: dataIngreso,
+                backgroundColor: getColorArray(dataIngreso),
+                borderRadius: 4,
+                borderWidth: 0
+            }]
+        },
+        options: {
+            ...commonOptions,
+            plugins: {
+                ...commonOptions.plugins,
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const index = context.dataIndex;
+                            return `Probabilidad: ${context.raw} (${infoIngreso[index]})`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+</script>
+
+</body>
+</html>
